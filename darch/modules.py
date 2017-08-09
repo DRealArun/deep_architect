@@ -1,5 +1,5 @@
 
-import base 
+from . import base
 import numpy as np
 import tensorflow as tf
 import copy
@@ -8,11 +8,11 @@ import copy
 class BasicModule(object):
     """Basic search and compilation functionality for basic modules.
 
-    Basic modules are composed of parameters and hyperparameters. They are not 
-    composite in the sense that do not have submodules as it is the case of 
-    Concat and Or modules. This class is not meant to be used directly. 
-    It has to be inherited and the functions that compute the output dimension 
-    and compile the module to tensorflow has to be implemented for the specific 
+    Basic modules are composed of parameters and hyperparameters. They are not
+    composite in the sense that do not have submodules as it is the case of
+    Concat and Or modules. This class is not meant to be used directly.
+    It has to be inherited and the functions that compute the output dimension
+    and compile the module to tensorflow has to be implemented for the specific
     module considered. See Affine and Dropout class definitions for examples
     of how to extend this class.
 
@@ -36,9 +36,9 @@ class BasicModule(object):
 
         self.in_d = in_d
         self.scope = scope
-        
+
         # registers itself in the scope
-        prefix = self.__class__.__name__ 
+        prefix = self.__class__.__name__
         name = scope.get_valid_name(prefix)
         self.namespace_id = name
         scope.register_namespace(name)
@@ -46,10 +46,10 @@ class BasicModule(object):
 
     def get_outdim(self):
         raise NotImplemented
-        
+
     def is_specified(self):
-        return (self.scope != None and 
-                self.in_d != None and 
+        return (self.scope != None and
+                self.in_d != None and
                 len(self.chosen) == len(self.order))
 
     def get_choices(self):
@@ -71,10 +71,10 @@ class BasicModule(object):
     # for printing
     def repr_program(self):
         name = self.__class__.__name__
-        return (name, ) + tuple(self.domains) 
+        return (name, ) + tuple(self.domains)
 
     def repr_model(self):
-        name = self.__class__.__name__ 
+        name = self.__class__.__name__
         vals = [dm[i] for i, dm in zip(self.chosen, self.domains)]
         r = (name, ) + tuple(vals)
         return (r, )
@@ -86,7 +86,7 @@ class BasicModule(object):
 class Empty(BasicModule):
     """Empty Module.
 
-    Compiles to a wire. Directly passes the input to the output without 
+    Compiles to a wire. Directly passes the input to the output without
     any transformation.
 
     """
@@ -101,7 +101,7 @@ class Dropout(BasicModule):
     """Dropout module.
 
     Dropout has different training behavior depending on whether the network
-    is being run on a training or on evaluation phase. Getting the desired 
+    is being run on a training or on evaluation phase. Getting the desired
     behavior in each case is achieved through the use of scopes.
 
     """
@@ -115,12 +115,12 @@ class Dropout(BasicModule):
         return self.in_d
 
     def compile(self, in_x, train_feed, eval_feed):
-        p_name = self.namespace_id + '_' + self.order[0] 
+        p_name = self.namespace_id + '_' + self.order[0]
         p_var = tf.placeholder(tf.float32, name=p_name)
 
-        # during training the value of the dropout probability (keep_prob) is 
-        # set to the actual chosen value. 
-        # during evalution, it is set to 1.0. 
+        # during training the value of the dropout probability (keep_prob) is
+        # set to the actual chosen value.
+        # during evalution, it is set to 1.0.
         p_val = self.domains[0][self.chosen[0]]
         train_feed[p_var] = p_val
         eval_feed[p_var] = 1.0
@@ -182,8 +182,8 @@ class Affine(BasicModule):
         W = tf.Variable( param_init_fn( [n, m] ) )
         b = tf.Variable(tf.zeros([m]))
 
-        # if the number of input dimensions is larger than one, flatten the 
-        # input and apply the affine transformation. 
+        # if the number of input dimensions is larger than one, flatten the
+        # input and apply the affine transformation.
         if len(self.in_d) > 1:
             in_x_flat = tf.reshape(in_x, shape=[-1, n])
             out_y = tf.add(tf.matmul(in_x_flat, W), b)
@@ -221,8 +221,8 @@ class MaxPooling2D(BasicModule):
             super(MaxPooling2D, self).initialize(in_d, scope)
 
     def get_outdim(self):
-        in_height, in_width, in_nchannels = self.in_d 
-        window_len, stride, padding = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        window_len, stride, padding = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
         out_height, out_width = compute_padded_dims(
@@ -230,20 +230,20 @@ class MaxPooling2D(BasicModule):
         out_d = (out_height, out_width, in_nchannels)
 
         return out_d
-            
+
     def compile(self, in_x, train_feed, eval_feed):
-        in_height, in_width, in_nchannels = self.in_d 
-        window_len, stride, padding = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        window_len, stride, padding = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
-        out_y = tf.nn.max_pool( 
-            in_x, ksize=[1, window_len, window_len, 1], 
+        out_y = tf.nn.max_pool(
+            in_x, ksize=[1, window_len, window_len, 1],
             strides=[1, stride, stride, 1], padding=padding)
 
         return out_y
 
 # NOTE: for now, this is close to a replication of the max pooling layer.
-# this may change later if we can capture most of the pooling layers in the 
+# this may change later if we can capture most of the pooling layers in the
 # same format. for now, an auxiliary function is provided.
 class AvgPooling2D(BasicModule):
     def __init__(self, window_lens, strides, paddings):
@@ -260,8 +260,8 @@ class AvgPooling2D(BasicModule):
             super(AvgPooling2D, self).initialize(in_d, scope)
 
     def get_outdim(self):
-        in_height, in_width, in_nchannels = self.in_d 
-        window_len, stride, padding = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        window_len, stride, padding = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
         out_height, out_width = compute_padded_dims(
@@ -269,27 +269,27 @@ class AvgPooling2D(BasicModule):
         out_d = (out_height, out_width, in_nchannels)
 
         return out_d
-            
+
     def compile(self, in_x, train_feed, eval_feed):
-        in_height, in_width, in_nchannels = self.in_d 
-        window_len, stride, padding = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        window_len, stride, padding = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
-        out_y = tf.nn.avg_pool( 
-            in_x, ksize=[1, window_len, window_len, 1], 
+        out_y = tf.nn.avg_pool(
+            in_x, ksize=[1, window_len, window_len, 1],
             strides=[1, stride, stride, 1], padding=padding)
 
         return out_y
 
 class Conv2D(BasicModule):
 
-    def __init__(self, filter_numbers, filter_lens, strides, paddings, 
+    def __init__(self, filter_numbers, filter_lens, strides, paddings,
             param_init_fns):
         super(Conv2D, self).__init__()
 
         self.order.extend(["filter_number", "filter_len", "stride", "padding",
             "param_init_fn"])
-        self.domains.extend([filter_numbers, filter_lens, strides, paddings, 
+        self.domains.extend([filter_numbers, filter_lens, strides, paddings,
             param_init_fns])
 
     # does additional error checking on the dimension.
@@ -301,8 +301,8 @@ class Conv2D(BasicModule):
             super(Conv2D, self).initialize(in_d, scope)
 
     def get_outdim(self):
-        in_height, in_width, in_nchannels = self.in_d 
-        nfilters, filter_len, stride, padding, _ = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        nfilters, filter_len, stride, padding, _ = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
         out_height, out_width = compute_padded_dims(
@@ -310,13 +310,13 @@ class Conv2D(BasicModule):
         out_d = (out_height, out_width, nfilters)
 
         return out_d
-            
+
     def compile(self, in_x, train_feed, eval_feed):
-        in_height, in_width, in_nchannels = self.in_d 
-        nfilters, filter_len, stride, padding, param_init_fn = [dom[i] 
+        in_height, in_width, in_nchannels = self.in_d
+        nfilters, filter_len, stride, padding, param_init_fn = [dom[i]
                 for (dom, i) in zip(self.domains, self.chosen)]
 
-        # Creation and initialization of the parameters. Should take size of 
+        # Creation and initialization of the parameters. Should take size of
         # the filter into account.
         W = tf.Variable(
                 param_init_fn( [filter_len, filter_len, in_nchannels, nfilters]) )
@@ -331,8 +331,8 @@ class Conv2D(BasicModule):
         return out_y
 
 class UserHyperparams(BasicModule):
-    """Used by the user to specify an additional set of hyperparameters that 
-    the user also wants to search over. The behavior of the program with 
+    """Used by the user to specify an additional set of hyperparameters that
+    the user also wants to search over. The behavior of the program with
     respect to these hyperparameters is determined by the user.
     """
     def __init__(self, order, domains):
@@ -349,17 +349,17 @@ class UserHyperparams(BasicModule):
         namespace["hyperp_names"] = self.order
         namespace["choices"] = tuple(self.chosen)
         namespace["hyperp_vals"] = [dom[i] for (dom, i) in zip(self.domains, self.chosen)]
-        
+
         return in_x
 
 ### Auxiliary function for dimension and choice propagation.
 def propagate_seq(bs, i):
     """ Propagates choices in a sequence of modules.
 
-    If the module in the current position of the sequence is specified, we can 
-    initialize the next module in the sequence (if there is any), and go to 
+    If the module in the current position of the sequence is specified, we can
+    initialize the next module in the sequence (if there is any), and go to
     the next module in the chain if the initialized module becomes specified.
-    
+
     """
 
     while bs[i].is_specified():
@@ -376,24 +376,24 @@ def propagate_seq(bs, i):
 def propagate(b):
     """ Propagates choices in a module.
 
-    While the module is in a state where there is only one option available for 
-    the next choice, we take that choice. This function leaves the module 
-    specified or in a state where there multiple choices. This function will 
-    typically be called by the submodule when initialize or choose is called 
+    While the module is in a state where there is only one option available for
+    the next choice, we take that choice. This function leaves the module
+    specified or in a state where there multiple choices. This function will
+    typically be called by the submodule when initialize or choose is called
     on that module.
 
     """
     while not b.is_specified() and len(b.get_choices()[1]) == 1:
         b.choose(0)
 
-### Composite modules that take other modules as input. 
+### Composite modules that take other modules as input.
 class Concat:
     def __init__(self, bs):
         if len(bs) == 0:
             raise ValueError
 
         self.bs = bs
-        self.in_d = None 
+        self.in_d = None
         self.scope = None
 
     def initialize(self, in_d, scope):
@@ -406,7 +406,7 @@ class Concat:
 
     def get_outdim(self):
         return self.bs[-1].get_outdim()
-        
+
     def is_specified(self):
         return self.bs[-1].is_specified()
 
@@ -420,12 +420,12 @@ class Concat:
     def repr_program(self):
         name = self.__class__.__name__
         args = [b.repr_program() for b in self.bs]
-        return (name, ) + tuple(args) 
+        return (name, ) + tuple(args)
 
     def repr_model(self):
         vals = []
         for b in self.bs:
-            vals.extend(b.repr_model()) 
+            vals.extend(b.repr_model())
         return tuple(vals)
 
     def compile(self, in_x, train_feed, eval_feed):
@@ -442,7 +442,7 @@ class Or:
         self.order = ["or_branch"]
         self.domains = [ range(len(bs)) ]
         self.bs = bs
-        self.in_d = None 
+        self.in_d = None
         self.chosen = []
         self.scope = None
 
@@ -481,7 +481,7 @@ class Or:
     def repr_program(self):
         name = self.__class__.__name__
         args = [b.repr_program() for b in self.bs]
-        return (name, ) + tuple(args) 
+        return (name, ) + tuple(args)
 
     def repr_model(self):
         vals = self.bs[self.chosen[0]].repr_model()
@@ -494,14 +494,14 @@ class Or:
 class Repeat:
     """Repeat module.
 
-    Takes a module as input and repeats it some number of times. The number of 
-    repeats is itself an hyperparameter. Hyperparameters of each repeat are not 
-    tied across repeats. See the RepeatTied module for tied hyperparameters 
+    Takes a module as input and repeats it some number of times. The number of
+    repeats is itself an hyperparameter. Hyperparameters of each repeat are not
+    tied across repeats. See the RepeatTied module for tied hyperparameters
     across repeats.
 
     """
     def __init__(self, b, ks):
-        if any([k < 1 for k in ks]): 
+        if any([k < 1 for k in ks]):
             raise ValueError
 
         self.order = ["num_repeats"]
@@ -509,7 +509,7 @@ class Repeat:
         self.b = b
 
         # used during search
-        self.in_d = None 
+        self.in_d = None
         self.chosen = []
         self.active_bs = None
         self.b_index = None
@@ -521,7 +521,7 @@ class Repeat:
 
     def get_outdim(self):
         return self.active_bs[-1].get_outdim()
-        
+
     def is_specified(self):
         if len(self.chosen) == 1:
             return self.active_bs[-1].is_specified()
@@ -540,8 +540,8 @@ class Repeat:
             k = self.domains[0][choice_i]
 
             self.b_index = 0
-            self.active_bs = [copy.deepcopy(self.b) for _ in xrange(k)] 
-            self.active_bs[0].initialize(self.in_d, self.scope) 
+            self.active_bs = [copy.deepcopy(self.b) for _ in xrange(k)]
+            self.active_bs[0].initialize(self.in_d, self.scope)
         else:
             self.active_bs[self.b_index].choose(choice_i)
 
@@ -556,7 +556,7 @@ class Repeat:
     def repr_model(self):
         vals = []
         for b in self.active_bs:
-            vals.extend(b.repr_model()) 
+            vals.extend(b.repr_model())
         return tuple(vals)
 
     def compile(self, in_x, train_feed, eval_feed):
@@ -572,10 +572,10 @@ class RepeatTied:
     Like a Repeat module, but now the hyperparameters are tied across repeats.
     Note that only the hyperparameters, not the parameters, are tied.
     Tying parameters is done through other route.
-    
+
     """
     def __init__(self, b, ks):
-        if any([k < 1 for k in ks]): 
+        if any([k < 1 for k in ks]):
             raise ValueError
 
         self.order = ["num_repeats"]
@@ -583,7 +583,7 @@ class RepeatTied:
         self.b = b
 
         # used during search
-        self.in_d = None 
+        self.in_d = None
         self.chosen = []
         self.active_bs = None
         self.b_index = None
@@ -597,7 +597,7 @@ class RepeatTied:
 
     def get_outdim(self):
         return self.active_bs[-1].get_outdim()
-        
+
     def is_specified(self):
         if len(self.chosen) == 1:
             return self.active_bs[-1].is_specified()
@@ -616,24 +616,24 @@ class RepeatTied:
             k = self.domains[0][choice_i]
 
             self.b_index = 0
-            self.active_bs = [copy.deepcopy(self.b) for _ in xrange(k)] 
-            self.active_bs[0].initialize(self.in_d, self.scope) 
+            self.active_bs = [copy.deepcopy(self.b) for _ in xrange(k)]
+            self.active_bs[0].initialize(self.in_d, self.scope)
         else:
             self.active_bs[self.b_index].choose(choice_i)
             self.b0_choose_hist.append(choice_i)
 
         self.b_index = propagate_seq(self.active_bs, self.b_index)
 
-        # as soon as the pointer moves to 1, set all others by copying the 
+        # as soon as the pointer moves to 1, set all others by copying the
         # choices.
         if self.b_index == 1:
             for b in self.active_bs[1:]:
                 for ch in self.b0_choose_hist:
                     b.choose(ch)
-                
+
                 # this should advance the pointer by one.
                 self.b_index = propagate_seq(self.active_bs, self.b_index)
-        
+
             # it should be specified at the end of this.
             assert self.is_specified()
 
@@ -646,7 +646,7 @@ class RepeatTied:
     def repr_model(self):
         vals = []
         for b in self.active_bs:
-            vals.extend(b.repr_model()) 
+            vals.extend(b.repr_model())
         return tuple(vals)
 
     def compile(self, in_x, train_feed, eval_feed):
@@ -658,23 +658,23 @@ class RepeatTied:
 class Residual:
     """ Residual skip connection.
 
-    Introduces a skip connection between the module passed as argument. 
+    Introduces a skip connection between the module passed as argument.
     The module taken as argument can have hyperparameters to be specified.
 
     If the input and output do not have the same dimensions, padding needs
     to be done for the results to be combined in a sum or product. We briefly
     discuss the different cases:
-    (1)| both input and output have the same number of dimensions and the same 
-    sizes for paired dimensions. 
+    (1)| both input and output have the same number of dimensions and the same
+    sizes for paired dimensions.
     => simply do the entrywise operation without doing any changes.
-    (2)| both input and output have the same number of dimensions, but they 
+    (2)| both input and output have the same number of dimensions, but they
     have different sizes for paired dimensions.
-    => pad the smallest dimensions on either input or output such that the 
-    result after padding can be combined; both input and output can be changed 
+    => pad the smallest dimensions on either input or output such that the
+    result after padding can be combined; both input and output can be changed
     in this case if none strictly dominates the other in terms of dimensions.
     (3)| input and ouput have different number of dimensions.
-    => perhaps the most straightforward solution is to flatten both input and 
-    output and combine the flattened versions. another possibility is to add 
+    => perhaps the most straightforward solution is to flatten both input and
+    output and combine the flattened versions. another possibility is to add
     extra dimensions and pad the smallest dimensions with zeros.
 
     The most straightforward solutions have been implemented for now.
@@ -683,7 +683,7 @@ class Residual:
 
     def __init__(self, b):
         self.b = b
-        self.in_d = None 
+        self.in_d = None
         self.scope = None
 
     def initialize(self, in_d, scope):
@@ -704,13 +704,13 @@ class Residual:
                 [max(od_i, id_i) for (od_i, id_i) in zip(out_d_b, in_d)])
 
         else:
-            # flattens both input and output. 
+            # flattens both input and output.
             out_d_b_flat = np.product(out_d_b)
             in_d_flat = np.product(in_d)
             out_d = (max(out_d_b_flat, in_d_flat) ,)
 
         return out_d
-        
+
     def is_specified(self):
         return self.b.is_specified()
 
@@ -727,7 +727,7 @@ class Residual:
         return (name, args)
 
     def repr_model(self):
-        name = self.__class__.__name__ 
+        name = self.__class__.__name__
         b = self.b.repr_model()
         r = (name, b[0])
 
@@ -737,7 +737,7 @@ class Residual:
         # NOTE: this function requires that target dims dominate (bigger or
         # equal component wise) in_dims. this is the case in how it is used
         # currently in the code below.
-        compute_padding_fn = lambda in_dims, out_dims: [ [0, max(0, od_i - id_i)] 
+        compute_padding_fn = lambda in_dims, out_dims: [ [0, max(0, od_i - id_i)]
                 for (id_i, od_i) in zip(in_dims, out_dims) ]
 
         out_d_b = self.b.get_outdim()
@@ -758,10 +758,10 @@ class Residual:
         # computing the padding for both b and the input.
         # NOTE: adds no padding to the data dimension (i.e., the initial [0, 0])
         paddings_b = [[0, 0]] + compute_padding_fn(out_d_b, out_d)
-        out_y_b_padded = tf.pad(out_y_b, paddings_b, "CONSTANT") 
+        out_y_b_padded = tf.pad(out_y_b, paddings_b, "CONSTANT")
 
         paddings_in = [[0, 0]] + compute_padding_fn(in_d, out_d)
-        in_x_padded = tf.pad(in_x, paddings_in, "CONSTANT") 
+        in_x_padded = tf.pad(in_x, paddings_in, "CONSTANT")
 
         # finally combine the results with the appropriate dimensions.
         out_y = out_y_b_padded + in_x_padded
@@ -785,8 +785,8 @@ class Squeeze(BasicModule):
 
 # it is kind of like the previous one.
 class ChoiceBisection:
-    """Does bissection on all the hyperparameters of module taken as argument. 
-    This can be useful to increase sharing between hyperparameter values in 
+    """Does bissection on all the hyperparameters of module taken as argument.
+    This can be useful to increase sharing between hyperparameter values in
     approaches such as MCTS.
     """
     def __init__(self, b):
@@ -798,7 +798,7 @@ class ChoiceBisection:
         self.cur_name = None
         self.cur_vals = None
         # hist is kept to create the create a name for the binary choice with
-        # a suffix that corresponds to the sequence of binary decisions done 
+        # a suffix that corresponds to the sequence of binary decisions done
         # so far.
 
     def initialize(self, in_d, scope):
@@ -835,8 +835,8 @@ class ChoiceBisection:
         assert self.is_bisecting and choice_i == 0 or choice_i == 1
 
         # doing the bissection
-        mid = int( (self.left + self.right) / 2.0 ) 
-        if choice_i == 0: 
+        mid = int( (self.left + self.right) / 2.0 )
+        if choice_i == 0:
             self.right = mid
         else:
             self.left = mid
@@ -869,7 +869,7 @@ def Optional_fn(b):
     return Or([Empty(), b])
 
 def Nonlinearity_fn(nonlin_types):
-    bs = [] 
+    bs = []
 
     for t in nonlin_types:
         if t == "relu":
@@ -886,7 +886,7 @@ def Nonlinearity_fn(nonlin_types):
     return Or(bs)
 
 def Pooling2D_fn(pooling_types, window_lens, strides, paddings):
-    bs = [] 
+    bs = []
 
     for t in pooling_types:
         if t == "max":
@@ -901,12 +901,12 @@ def Pooling2D_fn(pooling_types, window_lens, strides, paddings):
     return Or(bs)
 
 def MaybeSwap_fn(b1, b2):
-    """Builds a module that has a parameter to swapping the order of modules 
+    """Builds a module that has a parameter to swapping the order of modules
     passed as argument.
     """
 
     b = Or([
-            Concat([b1, b2]), 
+            Concat([b1, b2]),
             Concat([b2, b1])
         ])
     return b
