@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import numpy as np
 import scipy.sparse as sp
 import sklearn.linear_model as lm
@@ -11,23 +11,23 @@ def evaluate_and_print(evaluator, model,
 
     if output_to_terminal:
         pprint( model.repr_model() , width=40, indent=2)
-        print 
-        
+        print()
+
     if ignore_invalid_models:
-        try: 
+        try:
             sc = evaluator.eval_model(model)
 
         except ValueError:
             if output_to_terminal:
-                print "Invalid Model!"
+                print("Invalid Model!")
                 return None
     else:
-        sc = evaluator.eval_model(model)   
-    
+        sc = evaluator.eval_model(model)
+
     return sc
 
 # save the history on the model. will be useful for cached evaluation.
-def maybe_register_choice_hist(model, hist, save_hist_in_model):    
+def maybe_register_choice_hist(model, hist, save_hist_in_model):
         if save_hist_in_model:
             assert not hasattr(model, 'choice_hist')
             model.choice_hist = hist
@@ -76,12 +76,12 @@ def run_enumeration_searcher(evaluator, searcher,
     hists = []
     for (mdl, h) in searcher.enumerate_models():
 
-        sc = evaluate_and_print(evaluator, model, 
+        sc = evaluate_and_print(evaluator, model,
                 output_to_terminal, ignore_invalid_models)
         if sc != None:
             scores.append(sc)
             hists.append(h)
-    
+
     return (scores, hists)
 
 class RandomSearcher:
@@ -112,7 +112,7 @@ class RandomSearcher:
 
         return (samples, choice_hists)
 
-def run_random_searcher(evaluator, searcher, num_models, 
+def run_random_searcher(evaluator, searcher, num_models,
         output_to_terminal=False, ignore_invalid_models=False,
         save_hist_in_model=False):
 
@@ -126,7 +126,7 @@ def run_random_searcher(evaluator, searcher, num_models,
         hist = tuple(hists[0])
         maybe_register_choice_hist(mdl, hist, save_hist_in_model)
 
-        sc = evaluate_and_print(evaluator, mdl, 
+        sc = evaluate_and_print(evaluator, mdl,
                 output_to_terminal, ignore_invalid_models)
         if sc != None:
             srch_choice_hists.append(hist)
@@ -274,7 +274,7 @@ class SMBOLinearSearcher:
         self.histories.pop(epoch_i)
 
     def tell_observed_scores(self, epoch_i, sample_inds, scores):
-        """Update the state of the searcher based on the actual scores of the 
+        """Update the state of the searcher based on the actual scores of the
         models proposed.
 
         """
@@ -333,7 +333,7 @@ def run_smbo_searcher(evaluator, searcher,
         maybe_register_choice_hist(mdl, hist, save_hist_in_model)
 
         #sc = evaluator.eval_model(mdl)
-        sc = evaluate_and_print(evaluator, mdl, 
+        sc = evaluate_and_print(evaluator, mdl,
                 output_to_terminal, ignore_invalid_models)
         if sc != None:
             ep_model_inds.append(i)
@@ -354,11 +354,11 @@ def run_smbo_searcher(evaluator, searcher,
         (epoch_i, models, choice_hists, pred_scores) = \
                 searcher.sample_new_epoch(nsamples_epoch)
 
-        # if it is an exploration episode, shuffle the order given by the 
+        # if it is an exploration episode, shuffle the order given by the
         model_ordering = range(len(models))
         if np.random.rand() < explore_prob:
             np.random.shuffle(model_ordering)
-        
+
         # goes through the models in the order specified.
         for mdl_i in model_ordering:
             mdl = models[mdl_i]
@@ -366,7 +366,7 @@ def run_smbo_searcher(evaluator, searcher,
             maybe_register_choice_hist(mdl, hist, save_hist_in_model)
 
             #sc = evaluator.eval_model(mdl)
-            sc = evaluate_and_print(evaluator, mdl, 
+            sc = evaluate_and_print(evaluator, mdl,
                     output_to_terminal, ignore_invalid_models)
             if sc != None:
                 searcher.tell_observed_scores(epoch_i, [mdl_i], [sc])
@@ -380,7 +380,7 @@ def run_smbo_searcher(evaluator, searcher,
     # which is not desirable if the searcher already had information there.
     # this will be kept for now.
     # a fix would be to count the models evaluated and only return those.
-    # NOTE: COMEBACK as it is now, it only returns the information about the 
+    # NOTE: COMEBACK as it is now, it only returns the information about the
     # the models that were evaluated in in this turn.
     srch_scores = searcher.known_scores[-num_evals:]
     srch_choice_hists = searcher.known_hists[-num_evals:]
@@ -483,7 +483,7 @@ class MCTSTreeNode:
     def best_child(self, exploration_bonus):
         assert not self.is_leaf()
 
-        # if two nodes have the same score. 
+        # if two nodes have the same score.
         best_inds = None
         best_score = -np.inf
 
@@ -491,23 +491,23 @@ class MCTSTreeNode:
         for (i, node) in enumerate(self.children):
             # NOTE: potentially, do a different definition for the scores.
             # especially once the surrogate model is introduced.
-            # selection policy may be somewhat biased towards what the 
+            # selection policy may be somewhat biased towards what the
             # rollout policy based on surrogate functions says.
             # think about how to extend this.
             if node.num_trials > 0:
-                score = ( node.sum_scores / node.num_trials + 
+                score = ( node.sum_scores / node.num_trials +
                             exploration_bonus * np.sqrt(
                                 2.0 * parent_log_nt / node.num_trials) )
             else:
                 score = np.inf
-            
+
             # keep the best node.
             if score > best_score:
                 best_inds = [i]
                 best_score = score
             elif score == best_score:
                 best_inds.append(i)
-            
+
             # draw a child at random and expand.
             best_i = np.random.choice(best_inds)
             best_child = self.children[best_i]
@@ -535,7 +535,7 @@ def run_mcts_searcher(evaluator, searcher, num_models,
         maybe_register_choice_hist(mdl, cache_hist, save_hist_in_model)
 
         # evaluation of the model.
-        sc = evaluate_and_print(evaluator, mdl, 
+        sc = evaluate_and_print(evaluator, mdl,
                 output_to_terminal, ignore_invalid_models)
         if sc != None:
         #sc = np.random.random() ### come back here.
