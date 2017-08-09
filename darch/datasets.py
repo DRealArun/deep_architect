@@ -2,20 +2,23 @@
 import numpy as np
 import scipy as sp
 import tensorflow as tf
-import cPickle
+try:
+    import cPickle
+except ImportError:
+    import pickle as cPickle
 import os
 
 class InMemoryDataset:
-    """Wrapper around a dataset for iteration that allows cycling over the 
-    dataset. 
+    """Wrapper around a dataset for iteration that allows cycling over the
+    dataset.
 
-    This functionality is especially useful for training. One can specify if 
+    This functionality is especially useful for training. One can specify if
     the data is to be shuffled at the end of each epoch. It is also possible
     to specify a transformation function to applied to the batch before
     being returned by next_batch.
 
     """
-    
+
     def __init__(self, X, y, shuffle_at_epoch_begin, batch_transform_fn=None):
         if X.shape[0] != y.shape[0]:
             assert ValueError("X and y the same number of examples.")
@@ -30,10 +33,10 @@ class InMemoryDataset:
         return self.X.shape[0]
 
     def next_batch(self, batch_size):
-        """Returns the next batch in the dataset. 
+        """Returns the next batch in the dataset.
 
         If there are fewer that batch_size examples until the end
-        of the epoch, next_batch returns only as many examples as there are 
+        of the epoch, next_batch returns only as many examples as there are
         remaining in the epoch.
 
         """
@@ -70,11 +73,11 @@ def load_mnist(data_dir, flatten=False, one_hot=True, normalize_range=False):
         X = x.images
         y = x.labels
 
-        if not normalize_range: 
+        if not normalize_range:
             X *= 255.0
-        
+
         return (X, y)
-        
+
     Xtrain, ytrain = _extract_fn(mnist.train)
     Xval, yval = _extract_fn(mnist.validation)
     Xtest, ytest = _extract_fn(mnist.test)
@@ -85,9 +88,9 @@ def load_cifar10(data_dir, flatten=False, one_hot=True, normalize_range=False,
         whiten_pixels=True, border_pad_size=0):
     """Loads all of CIFAR-10 in a numpy array.
 
-    Provides a few options for the output formats. For example, 
+    Provides a few options for the output formats. For example,
     normalize_range returns the output images with pixel values in [0.0, 1.0].
-    The other options are self explanatory. Border padding corresponds to 
+    The other options are self explanatory. Border padding corresponds to
     upsampling the image by zero padding the border of the image.
 
     """
@@ -95,26 +98,31 @@ def load_cifar10(data_dir, flatten=False, one_hot=True, normalize_range=False,
     val_filenames = ['data_batch_5']
     test_filenames = ['test_batch']
 
-    # NOTE: this function uses some arguments from the outer scope, namely 
+    # NOTE: this function uses some arguments from the outer scope, namely
     # flatten, one_hot, normalize_range, and possibly others once added.
     def _load_data(fpath):
-        with open(fpath, 'rb') as f: 
-            d = cPickle.load(f)
+        with open(fpath, 'rb') as f:
+            try:
+                d = cPickle.load(f)
+            except UnicodeDecodeError:
+                f.seek(0)
+                d = cPickle.load(f, encoding='bytes')
+                d = {k.decode(): v for k, v in d.items()}  # change keys into strings
 
             # for the data
             X = d['data'].astype('float32')
 
-            # reshape the data to the format (num_images, height, width, depth) 
+            # reshape the data to the format (num_images, height, width, depth)
             num_images = X.shape[0]
             num_classes = 10
             X = X.reshape( (num_images, 3, 32, 32) )
             X = X.transpose( (0,2,3,1) )
             X = X.astype('float32')
-            
+
             # transformations based on the argument options.
             if normalize_range:
                 X = X / 255.0
-            
+
             if flatten:
                 X = X.reshape( (num_images, -1) )
 
@@ -143,7 +151,7 @@ def load_cifar10(data_dir, flatten=False, one_hot=True, normalize_range=False,
         y_full = np.concatenate(y_parts, axis=0)
 
         return (X_full, y_full)
-    
+
     Xtrain, ytrain = _load_data_multiple_files(train_filenames)
     Xval, yval = _load_data_multiple_files(val_filenames)
     Xtest, ytest = _load_data_multiple_files(test_filenames)
@@ -181,7 +189,7 @@ def center_crop(X, out_height, out_width):
 
     start_i = (in_height - out_height) / 2
     start_j = (in_width - out_width) / 2
-    out_X = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]  
+    out_X = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]
 
     return out_X
 
@@ -222,22 +230,22 @@ def per_image_whiten(X):
     X_flat = X.reshape((num_examples, -1))
     X_mean = X_flat.mean(axis=1)
     X_cent = X_flat - X_mean[:, None]
-    X_norm = np.sqrt( np.sum( X_cent * X_cent, axis=1) ) 
+    X_norm = np.sqrt( np.sum( X_cent * X_cent, axis=1) )
     X_out = X_cent / X_norm[:, None]
-    X_out = X_out.reshape(X.shape) 
+    X_out = X_out.reshape(X.shape)
 
     return X_out
 
 # Assumes the following ordering for X: (num_images, height, width, num_channels)
 def zero_pad_border(X, pad_size):
     n, height, width, num_channels = X.shape
-    X_padded = np.zeros((n, height + 2 * pad_size, width + 2 * pad_size, 
+    X_padded = np.zeros((n, height + 2 * pad_size, width + 2 * pad_size,
         num_channels), dtype='float32')
     X_padded[:, pad_size:height + pad_size, pad_size:width + pad_size, :] = X
-    
+
     return X_padded
 
-# auxiliary functions for 
+# auxiliary functions for
 def get_augment_cifar_data_train(out_height, out_width, p_flip):
     def augment_fn(X, y):
         X_out = random_crop(X, out_height, out_width)
