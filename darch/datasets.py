@@ -187,8 +187,8 @@ def center_crop(X, out_height, out_width):
     num_examples, in_height, in_width, in_depth = X.shape
     assert out_height <= in_height and out_width <= in_width
 
-    start_i = (in_height - out_height) / 2
-    start_j = (in_width - out_width) / 2
+    start_i = (in_height - out_height) // 2
+    start_j = (in_width - out_width) // 2
     out_X = X[:, start_i : start_i + out_height, start_j : start_j + out_width, :]
 
     return out_X
