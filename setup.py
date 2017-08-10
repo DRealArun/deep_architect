@@ -61,7 +61,6 @@ setup(
     install_requires=[
             'numpy',
             'scipy',
-            'tensorflow',
             'sklearn'
             ]
 )
