@@ -7,6 +7,7 @@ try:
 except ImportError:
     import pickle as cPickle
 import os
+import gc
 
 class InMemoryDataset:
     """Wrapper around a dataset for iteration that allows cycling over the
@@ -40,13 +41,20 @@ class InMemoryDataset:
         remaining in the epoch.
 
         """
-
+        #print("Batch Size :",batch_size)
         n = self.X.shape[0]
         i = self.iter_i
-
+        if i % 10 == 0:
+        	print("Batch Size :", batch_size)
         # shuffling step.
         if i == 0 and self.shuffle_at_epoch_begin:
             inds = np.random.permutation(n)
+            print("Value of inds = ",inds,len(inds))
+            print("Batch Size :",batch_size)
+            gc.collect()
+            for i in range(20):
+            	pass
+            gc.collect()
             self.X = self.X[inds]
             self.y = self.y[inds]
 
