@@ -55,7 +55,7 @@ def deepconv_ss0(num_classes):
         return b
 
     filter_numbers_min = range(48, 129, 16)
-    repeat_numbers = [2 ** i for i in xrange(6)]
+    repeat_numbers = [2 ** i for i in range(6)]
     mult_fn = lambda ls, alpha: list(alpha * np.array(ls))
 
     b_search = Concat([
@@ -93,7 +93,7 @@ def resnet_ss0(num_classes):
 
     filter_ns = range(48, 129, 16) 
     filter_ls = [1, 3, 5]
-    repeat_numbers = [2 ** i for i in xrange(6)]
+    repeat_numbers = [2 ** i for i in range(6)]
     mult_fn = lambda ls, alpha: list(alpha * np.array(ls))
     repeat_inner_ns = [1, 2, 4]
     repeat_outer_ns = [1, 2, 4, 8]

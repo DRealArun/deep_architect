@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 from darch.base import *
 from darch.modules import *
@@ -7,8 +8,8 @@ import darch.evaluators as ev
 import darch.searchers as srch
 import search_spaces as srch_sp
 from pprint import pprint
-import pickle
-import dill
+#import pickle
+import dill as pickle
 import os
 import sys
 
@@ -17,7 +18,7 @@ import sys
 def get_hyperparam_search_space(hps_type):
     # 2 * 8 * 2 * 4 = 128 for light 
     if hps_type == "light":
-        lr_inits = list( n  p.logspace(-2, -7, num=8) )
+        lr_inits = list( np.logspace(-2, -7, num=8) )
         rate_mults = [0.1, 0.5]
         rate_pats = [4, 8, 16, 32]
     # 2 * 32 * 8 * 8 = 4096 for heavy
@@ -86,7 +87,8 @@ class CustomEvaluator:
                                         test_dataset=self.test_dataset,
                                         in_d=self.in_d,
                                         nclasses=self.nclasses,
-                                        training_epochs_max=int(1e6),
+                                        #training_epochs_max=int(1e6), #Original value
+                                        training_epochs_max=10,
                                         time_minutes_max=self.max_minutes_per_model,
                                         display_step=1,
                                         stop_patience=hps['stop_patience'], ###
@@ -97,7 +99,8 @@ class CustomEvaluator:
                                         optimizer_type=hps['optimizer_type'], ###
                                         learning_rate_init=hps['learning_rate_init'], ###
                                         learning_rate_min=hps['learning_rate_min'], ###
-                                        batch_size_init=64,
+                                        batch_size_init=32,# This worked on GPU not on GPU4
+                                        #batch_size_init=16,
                                         model_path=self.model_path,
                                         output_to_terminal=self.output_to_terminal)
         return evaluator.eval_model(b_search)
@@ -142,8 +145,8 @@ def get_search_space(args):
     num_classes = 10
     ss = {'tfrefconv' : srch_sp.tfref_convnet_ss0(num_classes),
           'resnet' : srch_sp.resnet_ss0(num_classes),
-          'allconv' : srch_sp.allconvnet_cifar10_ss0(num_classes, in_d),
-          'allconv2' : srch_sp.allconvnet_cifar10_ss1(in_d),
+        #   'allconv' : srch_sp.allconvnet_cifar10_ss0(num_classes, in_d),
+        #   'allconv2' : srch_sp.allconvnet_cifar10_ss1(in_d),
           'deepconv' : srch_sp.deepconv_ss0(num_classes) }
     b_search = ss[ args['search_space_type'] ]
 
@@ -175,18 +178,19 @@ def get_initial_state(args):
     out_path = os.path.join(args['output_folder'], args['experiment_name'] + '.pkl')
     args['out_path'] = out_path
     args['model_path'] = model_path
+    print("Outpath",out_path)
     # checking if folder creation is necessary.
     if not os.path.isdir(args['output_folder']):
         os.makedirs(args['output_folder'])
 
     # either load the initial state from the checkpoint or create it.
     if os.path.exists(out_path):
-        print "Resuming from existing checkpoint for %s." % args['experiment_name']
+        print("Resuming from existing checkpoint for %s." % args['experiment_name'])
         (ckp_args, searcher, b_search, scores, hists, randgen_state) = load_checkpoint(out_path)
         np.random.set_state(randgen_state)
         assert frozenset(ckp_args.items()) == frozenset(args.items())
     else:
-        print "Model seach started for %s." % args['experiment_name']
+        print("Model seach started for %s." % args['experiment_name'])
         in_d = (32, 32, 3)
         b_search = get_search_space(args)
         if args['searcher_type'] == 'rand':
@@ -205,9 +209,9 @@ def get_initial_state(args):
         # if the first time that I'm looking at experiments for this, 
         # I will plot the args and the search space at the terminal.
         pprint( args, width=1)
-        print 
+        print("") 
         pprint( b_search.repr_program() , width=40, indent=2)
-        print 
+        print("") 
 
     return searcher, b_search, scores, hists
 
@@ -235,7 +239,7 @@ def run_searcher_with_checkpointing(args):
         args['num_samples'] - len(scores))
 
     # run for the samples remaining for this round.
-    for _ in xrange(num_samples_rem):
+    for _ in range(num_samples_rem):
         if args['searcher_type'] == 'rand':
             (new_scores, new_hists) = srch.run_random_searcher(evaluator, searcher,
                     num_models=1, output_to_terminal=True)
@@ -254,8 +258,8 @@ def run_searcher_with_checkpointing(args):
         save_checkpoint(args['out_path'], args, searcher, b_search, scores, hists)
     
     if args['num_samples'] == len(hists):
-        print "Experiment completed!" 
-    print
+        print("Experiment completed!" )
+    print("")
 
 #    if os.path.isfile(args['model_path']):
 #        os.remove(args['model_path'])
@@ -286,7 +290,7 @@ if __name__ == '__main__':
         searcher_type = sys.argv[3]
         seed = int(sys.argv[4])
 
-        run_searcher_comparison_experiment(search_space_type, searcher_type, seed)
+        run_searcher_comparison_experiment(searcher_type, search_space_type, seed)
         
     else:
         raise ValueError
