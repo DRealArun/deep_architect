@@ -107,29 +107,139 @@ class CustomEvaluator:
 
 # loads the data.
 def load_data(args):
-    # information about the cifar-10
-    in_d = (32, 32, 3)
-    nclasses = 10
+    if args['dataset'] == 'cifar10':
+        # information about the cifar-10
+        in_d = (32, 32, 3)
+        nclasses = 10
 
-    # options for data augmentation
-    trans_height = 32
-    trans_width = 32
-    p_flip = 0.5
-    pad_size = 4 
+        # options for data augmentation
+        trans_height = 32
+        trans_width = 32
+        p_flip = 0.5
+        pad_size = 4 
 
-    # load cifar
-    (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_cifar10(
-            data_dir='data/cifar10/cifar-10-batches-py/', 
-            flatten=False,
-            one_hot=True,
-            normalize_range=False,
-            whiten_pixels=True,
-            border_pad_size=pad_size)
+        # load cifar
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_cifar10(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 3)
+    elif args['dataset'] == 'mnist':
+        # information about the mnist
+        in_d = (28, 28, 1)
+        nclasses = 10
+
+        # options for data augmentation
+        trans_height = 28
+        trans_width = 28
+        p_flip = 0.5
+        pad_size = 4 
+
+        # load mnist
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_mnist(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 1)
+    elif args['dataset'] == 'fashion':
+        # information about the fashion mnist
+        in_d = (28, 28, 1)
+        nclasses = 10
+
+        # options for data augmentation
+        trans_height = 28
+        trans_width = 28
+        p_flip = 0.5
+        pad_size = 4 
+
+        # load fashion
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_fashion(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 1)
+    elif args['dataset'] == 'stl10':
+        # information about the stl10
+        in_d = (96, 96, 3)
+        nclasses = 10
+
+        # options for data augmentation
+        trans_height = 96
+        trans_width = 96
+        p_flip = 0.5
+        pad_size = 4 
+
+        # load stl10
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_stl10(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 3)
+    elif args['dataset'] == 'svhn':
+        # information about the svhn
+        in_d = (32, 32, 3)
+        nclasses = 10
+
+        # options for data augmentation
+        trans_height = 32
+        trans_width = 32
+        p_flip = 0.5
+        pad_size = 4 
+
+        # load svhn
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_svhn(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 3)
+    elif args['dataset'] == 'devanagari':
+        # information about the cifar-10
+        in_d = (32, 32, 1)
+        nclasses = 46
+
+        # options for data augmentation
+        trans_height = 32
+        trans_width = 32
+        p_flip = 0.5
+        pad_size = 4 
+
+        # load cifar
+        (Xtrain, ytrain, Xval, yval, Xtest, ytest) = ds.load_devanagari(
+                data_dir=args['datapath'], 
+                flatten=False,
+                one_hot=True,
+                normalize_range=False,
+                whiten_pixels=True,
+                border_pad_size=pad_size)
+
+        in_d = (trans_height, trans_width, 1)
+    else 
+        assert False, "Dataset not supported !"
+
 
     # augment data if the flag is set
-    augment_train_fn = ds.get_augment_cifar_data_train(trans_height, trans_width, p_flip)
-    augment_eval_fn = ds.get_augment_cifar_data_eval(trans_height, trans_width)
-    in_d = (trans_height, trans_width, 3)
+    augment_train_fn = ds.get_augment_data_train(trans_height, trans_width, p_flip)
+    augment_eval_fn = ds.get_augment_data_eval(trans_height, trans_width)
 
     # wrap data into a InMemoryDataset object
     train_dataset = ds.InMemoryDataset(Xtrain, ytrain, True, augment_train_fn)
@@ -141,7 +251,7 @@ def load_data(args):
 # may need some extra information for the models.s
 # the different experiments are simply using different time limits.
 def get_search_space(args):
-    in_d = (32, 32, 3)
+    # in_d = (32, 32, 3)
     num_classes = 10
     ss = {'tfrefconv' : srch_sp.tfref_convnet_ss0(num_classes),
           'resnet' : srch_sp.resnet_ss0(num_classes),
@@ -172,7 +282,7 @@ def load_checkpoint(out_path):
         return (d['args'], d['searcher'], d['b_search'], 
                 d['scores'], d['hists'], d['randgen_state'])
 
-def get_initial_state(args):
+def get_initial_state(args, in_d):
     # create the path if it does not exist.
     model_path = os.path.join(args['output_folder'], args['experiment_name'] + ".ckpt")
     out_path = os.path.join(args['output_folder'], args['experiment_name'] + '.pkl')
@@ -191,7 +301,7 @@ def get_initial_state(args):
         assert frozenset(ckp_args.items()) == frozenset(args.items())
     else:
         print("Model seach started for %s." % args['experiment_name'])
-        in_d = (32, 32, 3)
+        # in_d = (32, 32, 3)
         b_search = get_search_space(args)
         if args['searcher_type'] == 'rand':
             searcher = srch.RandomSearcher(b_search, in_d)
@@ -218,10 +328,10 @@ def get_initial_state(args):
 # max_evals is used to limit the total time that the process will take in the
 # case where I'm running in a server that has limit on the time per job.
 def run_searcher_with_checkpointing(args):
-    (searcher, b_search, scores, hists) = get_initial_state(args)
-
+    # (searcher, b_search, scores, hists) = get_initial_state(args)
     # load data and instantiate evaluator.
     (train_dataset, val_dataset, test_dataset, in_d, nclasses) = load_data(args)
+    (searcher, b_search, scores, hists) = get_initial_state(args, in_d)
     evaluator = CustomEvaluator(train_dataset=train_dataset, 
                                 val_dataset=val_dataset,
                                 test_dataset=test_dataset,
@@ -265,7 +375,7 @@ def run_searcher_with_checkpointing(args):
 #        os.remove(args['model_path'])
 
 # searchers : rand, mcts, mcts_bi, smbo
-def run_searcher_comparison_experiment(searcher_type, search_space_type, seed):
+def run_searcher_comparison_experiment(searcher_type, search_space_type, seed, dataset, datapath):
     args = {'augment_data' : True,
             'search_space_type' : search_space_type,
             'search_over_hyperparams_type' : 'heavy',
@@ -276,8 +386,10 @@ def run_searcher_comparison_experiment(searcher_type, search_space_type, seed):
             'searcher_type' : searcher_type,
             'num_samples' : 64,  # 64
             'max_minutes_per_model' : 30.0, # 60; maybe 30 minutes .more reps, less time.
-            'max_evals_per_process_run' : 100 } # this field may change. 12
-
+            'max_evals_per_process_run' : 100,  # this field may change. 12
+            'dataset' : dataset,
+            'datapath' : datapath,
+            }
     run_searcher_with_checkpointing(args)
 
 if __name__ == '__main__':
@@ -289,8 +401,12 @@ if __name__ == '__main__':
         search_space_type = sys.argv[2]
         searcher_type = sys.argv[3]
         seed = int(sys.argv[4])
+        dataset = sys.argv[5]
+        print("Dataset:",dataset)
+        datapath = sys.argv[6]
+        print("Datapath:",datapath)
 
-        run_searcher_comparison_experiment(searcher_type, search_space_type, seed)
+        run_searcher_comparison_experiment(searcher_type, search_space_type, seed, dataset, datapath)
         
     else:
         raise ValueError
