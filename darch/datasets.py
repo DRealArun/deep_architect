@@ -497,7 +497,7 @@ def load_devanagari(data_dir, flatten=False, one_hot=True, normalize_range=False
 
     # Persist this mapping so it can be loaded when training for decoding
     with open(os.path.join(data_directory, 'class_name2id.p'), 'wb') as p:
-        pickle.dump(class_name2id, p, protocol=pickle.HIGHEST_PROTOCOL)
+        cPickle.dump(class_name2id, p, protocol=cPickle.HIGHEST_PROTOCOL)
     
     x_train, y_train = read_devanagari_data('train', train_data_dir, class_name2id)
     combined = list(zip(x_train, y_train))

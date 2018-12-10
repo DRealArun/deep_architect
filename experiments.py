@@ -233,7 +233,7 @@ def load_data(args):
                 border_pad_size=pad_size)
 
         in_d = (trans_height, trans_width, 1)
-    else 
+    else:
         assert False, "Dataset not supported !"
 
 
@@ -250,9 +250,9 @@ def load_data(args):
 
 # may need some extra information for the models.s
 # the different experiments are simply using different time limits.
-def get_search_space(args):
+def get_search_space(args, nclasses):
     # in_d = (32, 32, 3)
-    num_classes = 10
+    num_classes = nclasses
     ss = {'tfrefconv' : srch_sp.tfref_convnet_ss0(num_classes),
           'resnet' : srch_sp.resnet_ss0(num_classes),
         #   'allconv' : srch_sp.allconvnet_cifar10_ss0(num_classes, in_d),
@@ -282,7 +282,7 @@ def load_checkpoint(out_path):
         return (d['args'], d['searcher'], d['b_search'], 
                 d['scores'], d['hists'], d['randgen_state'])
 
-def get_initial_state(args, in_d):
+def get_initial_state(args, in_d, nclasses):
     # create the path if it does not exist.
     model_path = os.path.join(args['output_folder'], args['experiment_name'] + ".ckpt")
     out_path = os.path.join(args['output_folder'], args['experiment_name'] + '.pkl')
@@ -302,7 +302,7 @@ def get_initial_state(args, in_d):
     else:
         print("Model seach started for %s." % args['experiment_name'])
         # in_d = (32, 32, 3)
-        b_search = get_search_space(args)
+        b_search = get_search_space(args, nclasses)
         if args['searcher_type'] == 'rand':
             searcher = srch.RandomSearcher(b_search, in_d)
         elif args['searcher_type'] == 'mcts' or args['searcher_type'] == 'mcts_bi':
@@ -331,7 +331,7 @@ def run_searcher_with_checkpointing(args):
     # (searcher, b_search, scores, hists) = get_initial_state(args)
     # load data and instantiate evaluator.
     (train_dataset, val_dataset, test_dataset, in_d, nclasses) = load_data(args)
-    (searcher, b_search, scores, hists) = get_initial_state(args, in_d)
+    (searcher, b_search, scores, hists) = get_initial_state(args, in_d, nclasses)
     evaluator = CustomEvaluator(train_dataset=train_dataset, 
                                 val_dataset=val_dataset,
                                 test_dataset=test_dataset,

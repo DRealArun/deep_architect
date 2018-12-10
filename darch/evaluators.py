@@ -106,13 +106,15 @@ class ClassifierEvaluator:
 
         # Initializing the variables
         init = tf.global_variables_initializer()
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)#working value onf gpu was 0.4
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)#working value onf gpu was 0.4
         # Launch the graph
         with tf.Session(
                 #config=tf.ConfigProto(
                 #    allow_soft_placement=True
                 #)
-                config = tf.ConfigProto(gpu_options=gpu_options)
+                config = config
             ) as sess:
             sess.run(init)
 
@@ -148,12 +150,14 @@ class ClassifierEvaluator:
 
                 # early stopping
                 vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+                tacc = compute_accuracy(self.train_dataset, eval_feed, batch_size)
 
                 # Display logs per epoch step
                 if self.output_to_terminal and epoch % self.display_step == 0:
                     print("Time:", "%7.1f" % (time.time() - time_start),
                           "Epoch:", '%04d' % (epoch+1),
                           "cost=", "{:.9f}".format(avg_cost),
+                          "train_acc=", "%.5f" % tacc, 
                           "val_acc=", "%.5f" % vacc, 
                           "learn_rate=", '%.3e' % learning_rate_val)
 
