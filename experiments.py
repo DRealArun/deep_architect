@@ -81,14 +81,16 @@ class CustomEvaluator:
         order = b_hp.scope.s[hpsc_name]['hyperp_names']
         vals = b_hp.scope.s[hpsc_name]['hyperp_vals']
         hps = dict(zip(order, vals))
-
+        bsize = 16
+        if self.args['dataset'] == 'stl10':
+            bsize = 4
         evaluator = ev.ClassifierEvaluator(train_dataset=self.train_dataset,
                                         val_dataset=self.val_dataset,
                                         test_dataset=self.test_dataset,
                                         in_d=self.in_d,
                                         nclasses=self.nclasses,
-                                        #training_epochs_max=int(1e6), #Original value
-                                        training_epochs_max=10,
+                                        training_epochs_max=int(1e6), #Original value
+                                        #training_epochs_max=10,
                                         time_minutes_max=self.max_minutes_per_model,
                                         display_step=1,
                                         stop_patience=hps['stop_patience'], ###
@@ -99,7 +101,7 @@ class CustomEvaluator:
                                         optimizer_type=hps['optimizer_type'], ###
                                         learning_rate_init=hps['learning_rate_init'], ###
                                         learning_rate_min=hps['learning_rate_min'], ###
-                                        batch_size_init=32,# This worked on GPU not on GPU4
+                                        batch_size_init=bsize,# This worked on GPU not on GPU4
                                         #batch_size_init=16,
                                         model_path=self.model_path,
                                         output_to_terminal=self.output_to_terminal)
@@ -382,7 +384,7 @@ def run_searcher_comparison_experiment(searcher_type, search_space_type, seed, d
             'bisect_search_space' : True if searcher_type == 'mcts_bi' else False,
             'random_seed' : seed, 
             'output_folder' : 'logs/searcher_comparison',
-            'experiment_name' : "%s_%s_%d" % (search_space_type, searcher_type, seed) ,
+            'experiment_name' : "%s_%s_%s_%d" % (dataset, search_space_type, searcher_type, seed) ,
             'searcher_type' : searcher_type,
             'num_samples' : 64,  # 64
             'max_minutes_per_model' : 30.0, # 60; maybe 30 minutes .more reps, less time.

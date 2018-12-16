@@ -4,6 +4,7 @@ import numpy as np
 import time
 import os
 import errno
+import sys
 
 class ClassifierEvaluator:
     """Trains and evaluates a classifier on some datasets passed as argument.
@@ -150,16 +151,17 @@ class ClassifierEvaluator:
 
                 # early stopping
                 vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
-                tacc = compute_accuracy(self.train_dataset, eval_feed, batch_size)
+                tracc = compute_accuracy(self.train_dataset, eval_feed, batch_size)
 
                 # Display logs per epoch step
                 if self.output_to_terminal and epoch % self.display_step == 0:
                     print("Time:", "%7.1f" % (time.time() - time_start),
                           "Epoch:", '%04d' % (epoch+1),
                           "cost=", "{:.9f}".format(avg_cost),
-                          "train_acc=", "%.5f" % tacc, 
+                          "train_acc=", "%.5f" % tracc, 
                           "val_acc=", "%.5f" % vacc, 
                           "learn_rate=", '%.3e' % learning_rate_val)
+                    sys.stdout.flush()
 
                 if best_vacc < vacc: 
                     best_vacc = vacc
@@ -211,8 +213,10 @@ class ClassifierEvaluator:
 
             vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
             print("Validation accuracy: %f" % vacc)
+            sys.stdout.flush()
             if self.test_dataset != None:
                 tacc = compute_accuracy(self.test_dataset, eval_feed, batch_size)
                 print("Test accuracy: %f" % tacc)
+                sys.stdout.flush()
 
         return vacc
