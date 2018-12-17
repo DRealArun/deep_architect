@@ -12,6 +12,7 @@ from pprint import pprint
 import dill as pickle
 import os
 import sys
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 # search space for searching over hyperparameters with two modes: 
 # a lighter one and a more extensive one.
@@ -89,18 +90,18 @@ class CustomEvaluator:
                                         test_dataset=self.test_dataset,
                                         in_d=self.in_d,
                                         nclasses=self.nclasses,
-                                        training_epochs_max=int(1e6), #Original value
+                                        training_epochs_max=int(200), #Original value
                                         #training_epochs_max=10,
                                         time_minutes_max=self.max_minutes_per_model,
                                         display_step=1,
-                                        stop_patience=hps['stop_patience'], ###
-                                        rate_patience=hps['rate_patience'], ###
+                                        #stop_patience=hps['stop_patience'], ###
+                                        #rate_patience=hps['rate_patience'], ###
                                         batch_patience=int(1e6),
                                         save_patience=2, 
-                                        rate_mult=hps['rate_mult'], ###
-                                        optimizer_type=hps['optimizer_type'], ###
-                                        learning_rate_init=hps['learning_rate_init'], ###
-                                        learning_rate_min=hps['learning_rate_min'], ###
+                                        #rate_mult=hps['rate_mult'], ###
+                                        #optimizer_type=hps['optimizer_type'], ###
+                                        #learning_rate_init=hps['learning_rate_init'], ###
+                                        #learning_rate_min=hps['learning_rate_min'], ###
                                         batch_size_init=bsize,# This worked on GPU not on GPU4
                                         #batch_size_init=16,
                                         model_path=self.model_path,
@@ -259,7 +260,8 @@ def get_search_space(args, nclasses):
           'resnet' : srch_sp.resnet_ss0(num_classes),
         #   'allconv' : srch_sp.allconvnet_cifar10_ss0(num_classes, in_d),
         #   'allconv2' : srch_sp.allconvnet_cifar10_ss1(in_d),
-          'deepconv' : srch_sp.deepconv_ss0(num_classes) }
+          'deepconv0' : srch_sp.deepconv_ss0(num_classes),
+          'deepconv' : srch_sp.deepconv_ss1(num_classes)}
     b_search = ss[ args['search_space_type'] ]
 
     # add hyperparameters to make sure that it is working

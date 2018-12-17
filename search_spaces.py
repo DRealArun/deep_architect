@@ -91,7 +91,7 @@ def resnet_ss0(num_classes):
                 Optional_fn( Dropout(keep_ps) )
             ])
 
-    filter_ns = range(48, 129, 16) 
+    filter_ns = range(48, 129, 16)
     filter_ls = [1, 3, 5]
     repeat_numbers = [2 ** i for i in range(6)]
     mult_fn = lambda ls, alpha: list(alpha * np.array(ls))
@@ -113,4 +113,36 @@ def resnet_ss0(num_classes):
                     ),
                     Affine([num_classes], aff_initers)
                 ])
+    return b_search
+
+
+def deepconv_ss1(num_classes):
+    conv_initers = [ kaiming2015delving_initializer_conv(1.0) ]
+    aff_initers = [ xavier_initializer_affine( 1.0 )]
+
+    def Module_fn(filter_ns, filter_ls, keep_ps, repeat_ns):
+        b = RepeatTied(
+                Concat([
+                    Conv2D(filter_ns, filter_ls, [1], ["SAME"], conv_initers),
+                    BatchNormalization(),
+                    Relu(),
+                    Optional_fn( Dropout(keep_ps) )
+            ]), repeat_ns)
+        return b
+
+    # filter_numbers_min = range(48, 129, 16)
+    filter_numbers_min = [32, 64, 128]
+    repeat_numbers = [2 ** i for i in range(4)]
+    mult_fn = lambda ls, alpha: list(alpha * np.array(ls))
+
+    b_search = Concat([
+            # this reduction layer wasn't here before, but it is convenient.
+            Conv2D(filter_numbers_min, [3, 5, 7], [1], ["SAME"], conv_initers), 
+            Module_fn(filter_numbers_min, [1, 3, 5, 7], [0.5, 0.9], repeat_numbers),
+            Optional_fn(AvgPooling2D([2], [2], ["SAME"])),
+            # Conv2D(filter_numbers_min, [1, 3, 5, 7], [2], ["SAME"], conv_initers),
+            Module_fn(mult_fn(filter_numbers_min, 2), [1, 3, 5, 7], [0.5, 0.9], repeat_numbers),
+            Optional_fn(AvgPooling2D([2], [2], ["SAME"])),
+            Affine([num_classes], aff_initers)
+        ])
     return b_search
