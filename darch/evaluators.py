@@ -5,6 +5,7 @@ import time
 import os
 import errno
 import sys
+from sklearn.metrics import confusion_matrix
 
 class ClassifierEvaluator:
     """Trains and evaluates a classifier on some datasets passed as argument.
@@ -95,17 +96,22 @@ class ClassifierEvaluator:
         def compute_accuracy(dataset, ev_feed, ev_batch_size):
             nc = 0
             n_left = dataset.get_num_examples()
+            predictions = []
+            true_labels = []
             while n_left > 0:
                 images, labels = dataset.next_batch(ev_batch_size)
                 ev_feed.update({x: images, 
                                 y: labels})
                 nc += num_correct.eval(ev_feed)
                 # update the number of examples left.
+                val = pred.eval(ev_feed)
+                predictions.extend(np.argmax(val, axis=1))
+                true_labels.extend(np.argmax(labels, axis=1))
                 eff_batch_size = labels.shape[0]
                 n_left -= eff_batch_size
             
             acc = float(nc) / dataset.get_num_examples()
-            return acc 
+            return acc, predictions, true_labels 
 
         # Initializing the variables
         init = tf.global_variables_initializer()
@@ -152,8 +158,8 @@ class ClassifierEvaluator:
                     avg_cost += c / total_batch
 
                 # early stopping
-                vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
-                tracc = compute_accuracy(self.train_dataset, eval_feed, batch_size)
+                vacc, _p, _t = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+                tracc, _p, _t = compute_accuracy(self.train_dataset, eval_feed, batch_size)
 
                 # Display logs per epoch step
                 if self.output_to_terminal and epoch % self.display_step == 0:
@@ -219,12 +225,17 @@ class ClassifierEvaluator:
             print("Optimization Finished!")
             sys.stdout.flush()
 
-            vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+            vacc, _p, _t = compute_accuracy(self.val_dataset, eval_feed, batch_size)
             print("Validation accuracy: %f" % vacc)
             sys.stdout.flush()
             if self.test_dataset != None:
-                tacc = compute_accuracy(self.test_dataset, eval_feed, batch_size)
+                tacc, y_pred, y_true = compute_accuracy(self.test_dataset, eval_feed, batch_size)
                 print("Test accuracy: %f" % tacc)
+                print("\nSize of predicted and true labels",np.shape(y_pred),np.shape(y_true))
+                print("Confusion matrix is :\n")
+                cm = confusion_matrix(y_true, y_pred)
+                for i in range(np.shape(cm)[0]):
+                   print(cm[i,:])
                 sys.stdout.flush()
 
         return vacc
