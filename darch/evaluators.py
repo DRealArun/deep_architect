@@ -46,6 +46,8 @@ class ClassifierEvaluator:
         self.sgd_momentum = sgd_momentum
         self.model_path = model_path
         self.test_dataset = test_dataset
+        print("Max Time per model",self.time_minutes_max)
+        print("Max epochs per model",self.training_epochs)
         
         if not os.path.exists(os.path.dirname(model_path)):
             try:
@@ -175,6 +177,8 @@ class ClassifierEvaluator:
                     rate_counter -= 1
                     batch_counter -= 1
                     if stop_counter == 0:
+                        print("Model training ended because of early stopping")
+                        sys.stdout.flush()
                         break   
 
                     if rate_counter == 0:
@@ -194,6 +198,7 @@ class ClassifierEvaluator:
                         if save_counter == 0:
                             save_path = saver.save(sess, self.model_path)
                             print("Model saved in file: %s" % save_path)
+                            sys.stdout.flush()
 
                             save_counter = self.save_patience
                             best_vacc_saved = vacc
@@ -201,6 +206,8 @@ class ClassifierEvaluator:
                 # at the end of the epoch, if spent more time than budget, exit.
                 time_now = time.time()
                 if (time_now - time_start) / 60.0 > self.time_minutes_max:
+                    print("Model training ended because of timeout")
+                    sys.stdout.flush()
                     break
 
             # if the model saved has better performance than the current model,
@@ -210,6 +217,7 @@ class ClassifierEvaluator:
                 print("Model restored from file: %s" % save_path)
 
             print("Optimization Finished!")
+            sys.stdout.flush()
 
             vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
             print("Validation accuracy: %f" % vacc)

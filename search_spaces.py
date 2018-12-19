@@ -121,11 +121,11 @@ def deepconv_ss1(num_classes):
     aff_initers = [ xavier_initializer_affine( 1.0 )]
 
     def Module_fn(filter_ns, filter_ls, keep_ps, repeat_ns):
-        b = RepeatTied(
+        b = Repeat(
                 Concat([
                     Conv2D(filter_ns, filter_ls, [1], ["SAME"], conv_initers),
                     BatchNormalization(),
-                    Relu(),
+                    ReLU(),
                     Optional_fn( Dropout(keep_ps) )
             ]), repeat_ns)
         return b
@@ -137,7 +137,7 @@ def deepconv_ss1(num_classes):
 
     b_search = Concat([
             # this reduction layer wasn't here before, but it is convenient.
-            Conv2D(filter_numbers_min, [3, 5, 7], [1], ["SAME"], conv_initers), 
+            Conv2D(filter_numbers_min, [1, 3, 5, 7], [1], ["SAME"], conv_initers), 
             Module_fn(filter_numbers_min, [1, 3, 5, 7], [0.5, 0.9], repeat_numbers),
             Optional_fn(AvgPooling2D([2], [2], ["SAME"])),
             # Conv2D(filter_numbers_min, [1, 3, 5, 7], [2], ["SAME"], conv_initers),
