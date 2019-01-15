@@ -4,6 +4,8 @@ import numpy as np
 import time
 import os
 import errno
+import sys
+from sklearn.metrics import confusion_matrix
 
 class ClassifierEvaluator:
     """Trains and evaluates a classifier on some datasets passed as argument.
@@ -45,6 +47,8 @@ class ClassifierEvaluator:
         self.sgd_momentum = sgd_momentum
         self.model_path = model_path
         self.test_dataset = test_dataset
+        print("Max Time per model",self.time_minutes_max)
+        print("Max epochs per model",self.training_epochs)
         
         if not os.path.exists(os.path.dirname(model_path)):
             try:
@@ -92,27 +96,34 @@ class ClassifierEvaluator:
         def compute_accuracy(dataset, ev_feed, ev_batch_size):
             nc = 0
             n_left = dataset.get_num_examples()
+            predictions = []
+            true_labels = []
             while n_left > 0:
                 images, labels = dataset.next_batch(ev_batch_size)
                 ev_feed.update({x: images, 
                                 y: labels})
                 nc += num_correct.eval(ev_feed)
                 # update the number of examples left.
+                val = pred.eval(ev_feed)
+                predictions.extend(np.argmax(val, axis=1))
+                true_labels.extend(np.argmax(labels, axis=1))
                 eff_batch_size = labels.shape[0]
                 n_left -= eff_batch_size
             
             acc = float(nc) / dataset.get_num_examples()
-            return acc 
+            return acc, predictions, true_labels 
 
         # Initializing the variables
         init = tf.global_variables_initializer()
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)#working value onf gpu was 0.4
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)#working value onf gpu was 0.4
         # Launch the graph
         with tf.Session(
                 #config=tf.ConfigProto(
                 #    allow_soft_placement=True
                 #)
-                config = tf.ConfigProto(gpu_options=gpu_options)
+                config = config
             ) as sess:
             sess.run(init)
 
@@ -147,15 +158,18 @@ class ClassifierEvaluator:
                     avg_cost += c / total_batch
 
                 # early stopping
-                vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+                vacc, _p, _t = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+                tracc, _p, _t = compute_accuracy(self.train_dataset, eval_feed, batch_size)
 
                 # Display logs per epoch step
                 if self.output_to_terminal and epoch % self.display_step == 0:
                     print("Time:", "%7.1f" % (time.time() - time_start),
                           "Epoch:", '%04d' % (epoch+1),
                           "cost=", "{:.9f}".format(avg_cost),
+                          "train_acc=", "%.5f" % tracc, 
                           "val_acc=", "%.5f" % vacc, 
                           "learn_rate=", '%.3e' % learning_rate_val)
+                    sys.stdout.flush()
 
                 if best_vacc < vacc: 
                     best_vacc = vacc
@@ -169,6 +183,8 @@ class ClassifierEvaluator:
                     rate_counter -= 1
                     batch_counter -= 1
                     if stop_counter == 0:
+                        print("Model training ended because of early stopping")
+                        sys.stdout.flush()
                         break   
 
                     if rate_counter == 0:
@@ -188,6 +204,7 @@ class ClassifierEvaluator:
                         if save_counter == 0:
                             save_path = saver.save(sess, self.model_path)
                             print("Model saved in file: %s" % save_path)
+                            sys.stdout.flush()
 
                             save_counter = self.save_patience
                             best_vacc_saved = vacc
@@ -195,6 +212,8 @@ class ClassifierEvaluator:
                 # at the end of the epoch, if spent more time than budget, exit.
                 time_now = time.time()
                 if (time_now - time_start) / 60.0 > self.time_minutes_max:
+                    print("Model training ended because of timeout")
+                    sys.stdout.flush()
                     break
 
             # if the model saved has better performance than the current model,
@@ -204,11 +223,19 @@ class ClassifierEvaluator:
                 print("Model restored from file: %s" % save_path)
 
             print("Optimization Finished!")
+            sys.stdout.flush()
 
-            vacc = compute_accuracy(self.val_dataset, eval_feed, batch_size)
+            vacc, _p, _t = compute_accuracy(self.val_dataset, eval_feed, batch_size)
             print("Validation accuracy: %f" % vacc)
+            sys.stdout.flush()
             if self.test_dataset != None:
-                tacc = compute_accuracy(self.test_dataset, eval_feed, batch_size)
+                tacc, y_pred, y_true = compute_accuracy(self.test_dataset, eval_feed, batch_size)
                 print("Test accuracy: %f" % tacc)
+                print("\nSize of predicted and true labels",np.shape(y_pred),np.shape(y_true))
+                print("Confusion matrix is :\n")
+                cm = confusion_matrix(y_true, y_pred)
+                for i in range(np.shape(cm)[0]):
+                   print(cm[i,:])
+                sys.stdout.flush()
 
         return vacc

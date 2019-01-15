@@ -54,7 +54,7 @@ class InMemoryDataset:
         if i == 0 and self.shuffle_at_epoch_begin:
             inds = np.random.permutation(n)
             print("Value of inds = ",inds,len(inds))
-            print("Batch Size :",batch_size)
+            # print("Batch Size :",batch_size)
             gc.collect()
             for i in range(20):
             	pass
@@ -218,6 +218,17 @@ def load_cifar10(data_dir, flatten=False, one_hot=True, normalize_range=False,
 
     Xtrain, ytrain = _load_data_multiple_files(train_filenames)
     Xval, yval = _load_data_multiple_files(val_filenames)
+    print("Total Training size before",Xtrain.shape)
+    print("Validation set size before",Xval.shape)
+    A = np.vstack((Xtrain, Xval))
+    B = np.vstack((ytrain, yval))
+    split = int(np.floor(0.9 * A.shape[0]))
+    Xtrain = A[:split]
+    ytrain = B[:split]
+    Xval = A[split:A.shape[0]]
+    yval = B[split:B.shape[0]]
+    print("Total Training size after",Xtrain.shape)
+    print("Validation set size after",Xval.shape)
     Xtest, ytest = _load_data_multiple_files(test_filenames)
 
     if whiten_pixels:
@@ -239,6 +250,7 @@ def read_labels(path_to_labels):
     """
     :param path_to_labels: path to the binary file containing labels from the STL-10 dataset
     :return: an array containing the labels
+    taken from https://github.com/mttk/STL10/blob/master/stl10_input.py
     """
     with open(path_to_labels, 'rb') as f:
         labels = np.fromfile(f, dtype=np.uint8)
@@ -248,6 +260,7 @@ def read_all_images(path_to_data):
     """
     :param path_to_data: the file containing the binary images from the STL-10 dataset
     :return: an array containing all the images
+    taken from https://github.com/mttk/STL10/blob/master/stl10_input.py
     """
 
     with open(path_to_data, 'rb') as f:
@@ -278,6 +291,7 @@ def read_single_image(image_file):
     position of the reader will be remembered outside of context of this method.
     :param image_file: the open file containing the images
     :return: a single image
+    taken from https://github.com/mttk/STL10/blob/master/stl10_input.py
     """
     # image shape
     HEIGHT = 96
@@ -301,6 +315,8 @@ def download_and_extract(DATA_DIR):
     """
     Download and extract the STL-10 dataset
     :return: None
+    Taken from 
+    https://github.com/mttk/STL10/blob/master/stl10_input.py
     """
     DATA_URL = 'http://ai.stanford.edu/~acoates/stl10/stl10_binary.tar.gz'
     dest_directory = DATA_DIR
@@ -319,6 +335,10 @@ def download_and_extract(DATA_DIR):
 
 def load_stl10(data_dir, flatten=False, one_hot=True, normalize_range=False,
         whiten_pixels=True, border_pad_size=0):
+    """
+    Large part of this loader and the associated functions has been inspired from,
+    https://github.com/mttk/STL10/blob/master/stl10_input.py
+    """
     # path to the binary train file with image data
     train_img_path = os.path.join(data_dir,'stl10_binary','train_X.bin')
 
@@ -394,6 +414,10 @@ def load_stl10(data_dir, flatten=False, one_hot=True, normalize_range=False,
 
 def load_svhn(data_dir, flatten=False, one_hot=True, normalize_range=False,
         whiten_pixels=True, border_pad_size=0):
+    """
+    Large part of this loader and associated functions has been taken from 
+    https://github.com/codemukul95/SVHN-classification-using-Tensorflow/blob/master/load_input.py
+    """
     train_path = os.path.join(data_dir, 'train_32x32')
     train_dict = sio.loadmat(train_path)
     X = np.asarray(train_dict['X'])
@@ -497,7 +521,7 @@ def load_devanagari(data_dir, flatten=False, one_hot=True, normalize_range=False
 
     # Persist this mapping so it can be loaded when training for decoding
     with open(os.path.join(data_directory, 'class_name2id.p'), 'wb') as p:
-        pickle.dump(class_name2id, p, protocol=pickle.HIGHEST_PROTOCOL)
+        cPickle.dump(class_name2id, p, protocol=cPickle.HIGHEST_PROTOCOL)
     
     x_train, y_train = read_devanagari_data('train', train_data_dir, class_name2id)
     combined = list(zip(x_train, y_train))

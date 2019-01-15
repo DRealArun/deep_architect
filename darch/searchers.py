@@ -1,10 +1,12 @@
-from __future__ import print_function
+
 import numpy as np
 import scipy.sparse as sp
 import sklearn.linear_model as lm
 from pprint import pprint
 from darch.base import *
 import copy
+import time
+import sys
 
 def evaluate_and_print(evaluator, model,
         output_to_terminal, ignore_invalid_models):
@@ -171,12 +173,12 @@ class SMBOLinearSearcher:
 
         # keeping only the ngram with counts above the threshold.
         filtered_ngrams = []
-        for (ngram, c) in ngram_to_count.iteritems():
+        for (ngram, c) in ngram_to_count.items():
             if c >= thres:
                 filtered_ngrams.append(ngram)
 
         self.module_ngram_to_id = dict(
-            zip(filtered_ngrams, range(len(filtered_ngrams)) ) )
+            list(zip(filtered_ngrams, list(range(len(filtered_ngrams))) )) )
 
     def _compute_features(self, model):
 
@@ -231,7 +233,7 @@ class SMBOLinearSearcher:
         samples = []
         scores = []
         choice_hists = []
-
+        print("\n Generating models", nsamples)
         for _ in range(nsamples):
             bk = copy.deepcopy(self.b_search)
             bk.initialize(self.in_d, Scope())
@@ -355,7 +357,7 @@ def run_smbo_searcher(evaluator, searcher,
                 searcher.sample_new_epoch(nsamples_epoch)
 
         # if it is an exploration episode, shuffle the order given by the
-        model_ordering = range(len(models))
+        model_ordering = list(range(len(models)))
         if np.random.rand() < explore_prob:
             np.random.shuffle(model_ordering)
 
@@ -368,6 +370,8 @@ def run_smbo_searcher(evaluator, searcher,
             #sc = evaluator.eval_model(mdl)
             sc = evaluate_and_print(evaluator, mdl,
                     output_to_terminal, ignore_invalid_models)
+            print("--------> Time After Model Evaluation:",time.time())
+            sys.stdout.flush()
             if sc != None:
                 searcher.tell_observed_scores(epoch_i, [mdl_i], [sc])
                 num_evals += 1

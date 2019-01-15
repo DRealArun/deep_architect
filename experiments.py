@@ -12,6 +12,8 @@ from pprint import pprint
 import dill as pickle
 import os
 import sys
+import time
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 # search space for searching over hyperparameters with two modes: 
 # a lighter one and a more extensive one.
@@ -72,37 +74,42 @@ class CustomEvaluator:
         # NOTE: I'm breaking encapsulation here for now.
         if self.args['bisect_search_space']:
             # has a ChoiceBisection, followed by Concat [UserHyperparams, b_search]
-            b_hp, b_search = b.b.bs
+            # b_hp, b_search = b.b.bs
+            b_search = b.b
         else:
             # just the concat module
-            b_hp, b_search = b.bs
-        b_hp.compile(None, None, None)
-        hpsc_name = self.user_hyperparams_scope_name
-        order = b_hp.scope.s[hpsc_name]['hyperp_names']
-        vals = b_hp.scope.s[hpsc_name]['hyperp_vals']
-        hps = dict(zip(order, vals))
-
+            # b_hp, b_search = b.bs
+            b_search = b
+        # b_hp.compile(None, None, None)
+        # hpsc_name = self.user_hyperparams_scope_name
+        # order = b_hp.scope.s[hpsc_name]['hyperp_names']
+        # vals = b_hp.scope.s[hpsc_name]['hyperp_vals']
+        # hps = dict(zip(order, vals))
+        bsize = 16
+        if self.args['dataset'] == 'stl10':
+            bsize = 4
         evaluator = ev.ClassifierEvaluator(train_dataset=self.train_dataset,
                                         val_dataset=self.val_dataset,
                                         test_dataset=self.test_dataset,
                                         in_d=self.in_d,
                                         nclasses=self.nclasses,
-                                        #training_epochs_max=int(1e6), #Original value
-                                        training_epochs_max=10,
+                                        training_epochs_max=int(200), #Original value
+                                        #training_epochs_max=10,
                                         time_minutes_max=self.max_minutes_per_model,
                                         display_step=1,
-                                        stop_patience=hps['stop_patience'], ###
-                                        rate_patience=hps['rate_patience'], ###
+                                        #stop_patience=hps['stop_patience'], ###
+                                        #rate_patience=hps['rate_patience'], ###
                                         batch_patience=int(1e6),
                                         save_patience=2, 
-                                        rate_mult=hps['rate_mult'], ###
-                                        optimizer_type=hps['optimizer_type'], ###
-                                        learning_rate_init=hps['learning_rate_init'], ###
-                                        learning_rate_min=hps['learning_rate_min'], ###
-                                        batch_size_init=32,# This worked on GPU not on GPU4
+                                        #rate_mult=hps['rate_mult'], ###
+                                        #optimizer_type=hps['optimizer_type'], ###
+                                        #learning_rate_init=hps['learning_rate_init'], ###
+                                        #learning_rate_min=hps['learning_rate_min'], ###
+                                        batch_size_init=bsize,# This worked on GPU not on GPU4
                                         #batch_size_init=16,
                                         model_path=self.model_path,
                                         output_to_terminal=self.output_to_terminal)
+        print("b_search",b_search, b)
         return evaluator.eval_model(b_search)
 
 # loads the data.
@@ -233,7 +240,7 @@ def load_data(args):
                 border_pad_size=pad_size)
 
         in_d = (trans_height, trans_width, 1)
-    else 
+    else:
         assert False, "Dataset not supported !"
 
 
@@ -241,6 +248,9 @@ def load_data(args):
     augment_train_fn = ds.get_augment_data_train(trans_height, trans_width, p_flip)
     augment_eval_fn = ds.get_augment_data_eval(trans_height, trans_width)
 
+    print("Shape of Training set:", np.shape(Xtrain), np.shape(ytrain))
+    print("Shape of Validation set:", np.shape(Xval), np.shape(yval))
+    print("Shape of Testing set:", np.shape(Xtest), np.shape(ytest))
     # wrap data into a InMemoryDataset object
     train_dataset = ds.InMemoryDataset(Xtrain, ytrain, True, augment_train_fn)
     val_dataset = ds.InMemoryDataset(Xval, yval, False, augment_eval_fn)
@@ -250,19 +260,20 @@ def load_data(args):
 
 # may need some extra information for the models.s
 # the different experiments are simply using different time limits.
-def get_search_space(args):
+def get_search_space(args, nclasses):
     # in_d = (32, 32, 3)
-    num_classes = 10
+    num_classes = nclasses
     ss = {'tfrefconv' : srch_sp.tfref_convnet_ss0(num_classes),
           'resnet' : srch_sp.resnet_ss0(num_classes),
         #   'allconv' : srch_sp.allconvnet_cifar10_ss0(num_classes, in_d),
         #   'allconv2' : srch_sp.allconvnet_cifar10_ss1(in_d),
-          'deepconv' : srch_sp.deepconv_ss0(num_classes) }
+          'deepconv0' : srch_sp.deepconv_ss0(num_classes),
+          'deepconv' : srch_sp.deepconv_ss1(num_classes)}
     b_search = ss[ args['search_space_type'] ]
 
     # add hyperparameters to make sure that it is working
-    b_hp = get_hyperparam_search_space(args['search_over_hyperparams_type'])
-    b_search = Concat([b_hp, b_search])
+    # b_hp = get_hyperparam_search_space(args['search_over_hyperparams_type'])
+    # b_search = Concat([b_search])
     # if bissecting the space, adds a bisection module.
     if args['bisect_search_space']:
         b_search = ChoiceBisection(b_search)
@@ -282,7 +293,7 @@ def load_checkpoint(out_path):
         return (d['args'], d['searcher'], d['b_search'], 
                 d['scores'], d['hists'], d['randgen_state'])
 
-def get_initial_state(args, in_d):
+def get_initial_state(args, in_d, nclasses):
     # create the path if it does not exist.
     model_path = os.path.join(args['output_folder'], args['experiment_name'] + ".ckpt")
     out_path = os.path.join(args['output_folder'], args['experiment_name'] + '.pkl')
@@ -302,7 +313,7 @@ def get_initial_state(args, in_d):
     else:
         print("Model seach started for %s." % args['experiment_name'])
         # in_d = (32, 32, 3)
-        b_search = get_search_space(args)
+        b_search = get_search_space(args, nclasses)
         if args['searcher_type'] == 'rand':
             searcher = srch.RandomSearcher(b_search, in_d)
         elif args['searcher_type'] == 'mcts' or args['searcher_type'] == 'mcts_bi':
@@ -331,7 +342,7 @@ def run_searcher_with_checkpointing(args):
     # (searcher, b_search, scores, hists) = get_initial_state(args)
     # load data and instantiate evaluator.
     (train_dataset, val_dataset, test_dataset, in_d, nclasses) = load_data(args)
-    (searcher, b_search, scores, hists) = get_initial_state(args, in_d)
+    (searcher, b_search, scores, hists) = get_initial_state(args, in_d, nclasses)
     evaluator = CustomEvaluator(train_dataset=train_dataset, 
                                 val_dataset=val_dataset,
                                 test_dataset=test_dataset,
@@ -381,14 +392,15 @@ def run_searcher_comparison_experiment(searcher_type, search_space_type, seed, d
             'search_over_hyperparams_type' : 'heavy',
             'bisect_search_space' : True if searcher_type == 'mcts_bi' else False,
             'random_seed' : seed, 
-            'output_folder' : 'logs/searcher_comparison',
-            'experiment_name' : "%s_%s_%d" % (search_space_type, searcher_type, seed) ,
+            'output_folder' : "%s_%s_%s_%s_%d" % ('logs/searcher_comparison', dataset, search_space_type, searcher_type, seed),
+            'experiment_name' : "%s_%s_%s_%d" % (dataset, search_space_type, searcher_type, seed) ,
             'searcher_type' : searcher_type,
             'num_samples' : 64,  # 64
-            'max_minutes_per_model' : 30.0, # 60; maybe 30 minutes .more reps, less time.
+            'max_minutes_per_model' : 180.0, # 60; maybe 30 minutes .more reps, less time.
             'max_evals_per_process_run' : 100,  # this field may change. 12
             'dataset' : dataset,
             'datapath' : datapath,
+            'model_path': "%s_%s_%s_%s_%d" % ('models/model', dataset, search_space_type, searcher_type, seed),
             }
     run_searcher_with_checkpointing(args)
 
@@ -405,7 +417,8 @@ if __name__ == '__main__':
         print("Dataset:",dataset)
         datapath = sys.argv[6]
         print("Datapath:",datapath)
-
+        print("--------> Start time:",time.time())
+        sys.stdout.flush()
         run_searcher_comparison_experiment(searcher_type, search_space_type, seed, dataset, datapath)
         
     else:
